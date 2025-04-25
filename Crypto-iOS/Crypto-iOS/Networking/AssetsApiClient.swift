@@ -1,8 +1,14 @@
 import Dependencies
 import Foundation
+import XCTestDynamicOverlay
+ import FirebaseFirestore
 
 struct AssetsApiClient{
     var fetchAllAssets: () async throws -> [Asset]
+    var saveFavourite: (User, Asset) async throws -> Void
+    var fetchFavourites : (User) async throws -> [String]
+    var fetchAsset: (String)  async throws -> Asset
+
 }
 enum NetworkingError: Error{
     case invalidURL
@@ -17,59 +23,120 @@ enum NetworkingError: Error{
 
 extension AssetsApiClient: DependencyKey{
     static var liveValue: AssetsApiClient{
-        .init(
+        let db = Firestore.firestore().collection("favourites")
+        let urlSession = URLSession.shared
+        let apikey = "31e2cf8b42bd1408e182ff1669ed6928cbedc89687c6c3d7d8d9bf733e01684b"
+        let baseUrl = "https://rest.coincap.io/v3"
+        
+        return .init(
             fetchAllAssets: {
-                let urlSession = URLSession.shared
+                    let urlSession = URLSession.shared
+                    
+                guard let url = URL(string: "\(baseUrl)/assets?apiKey=\(apikey)") else {
+                        throw NetworkingError.invalidURL
+                    }
+                    
+                    let (data, _) = try await urlSession.data(for: URLRequest(url: url))
+                    let assetsResponse = try JSONDecoder().decode(AssetsResponse.self, from: data)
+                    
+                    return assetsResponse.data
+                },
+            
+            saveFavourite: { user, asset in
+                try await db.document(user.id).setData(
+                    ["favourites": FieldValue.arrayUnion([asset.id])],
+                    merge: true
+                )
+            },
+            fetchFavourites: {user in
+                let doc = try await db.document(user.id).getDocument()
+                let favourites = doc.get("favourites") as? [String]
+                return favourites ?? []
+            },
+            fetchAsset: { assetId in
                 
-                guard let url = URL(string: "https://52594b46-fac1-4496-9184-5c4a27a1b3b3.mock.pstmn.io/v3/assets") else {
+                
+                guard let url = URL(string: "\(baseUrl)/assets?apiKey=\(apikey)") else {
                     throw NetworkingError.invalidURL
                 }
                 
                 let (data, _) = try await urlSession.data(for: URLRequest(url: url))
-                let assetsResponse = try JSONDecoder().decode(AssetsResponse.self, from: data)
+                let asset = try JSONDecoder().decode(AssetResponse.self, from: data)
                 
-                return assetsResponse.data
+                return asset.data
             }
         )
     }
     
     //puedo definir un par de assets de ejemplo
-    static var previewValue: AssetsApiClient{
+    static var previewValue: AssetsApiClient {
         .init(
             fetchAllAssets: {[
                 .init(
                     id: "bitcoin",
                     name: "Bitcoin",
                     symbol: "BTC",
-                    priceUsd: "89999",
-                    changePercent24Hr: "6.99"
+                    priceUsd: "89111121.2828",
+                    changePercent24Hr: "8.992929292"
                 ),
                 .init(
-                    id: "ethreum",
-                    name: "ethreum",
+                    id: "ethereum",
+                    name: "Ethereum",
                     symbol: "ETH",
-                    priceUsd: "89999213123213",
-                    changePercent24Hr: "-21.434534543599"
+                    priceUsd: "1289.282828",
+                    changePercent24Hr: "-1.2323232323"
                 ),
                 .init(
                     id: "solana",
                     name: "Solana",
                     symbol: "SOL",
-                    priceUsd: "5000.21893718293721983",
-                    changePercent24Hr: "5.99"
+                    priceUsd: "500.29292929",
+                    changePercent24Hr: "9.2828282"
                 )
-            ]
+            ]},
+            saveFavourite: { _, _ in },
+            fetchFavourites: {_ in []}
+            ,
+            fetchAsset: { _ in .init(
+                id: "bitcoin",
+                name: "Bitcoin",
+                symbol: "BTC",
+                priceUsd: "89111121.2828",
+                changePercent24Hr: "8.992929292"
+            )
                 
-            }
-        )
+            }        )
     }
+
     
-    static var testValue: AssetsApiClient{
-        .init(fetchAllAssets: {
-            reportIssue("AssetsApiClient.fetchAllAssets is unimplemented")
-            return[]
-        })
-    }
+    static var testValue: AssetsApiClient {
+           .init(
+               fetchAllAssets: {
+                   XCTFail("AssetsApiClient.fetchAllAssets is unimplemented")
+                   //            reportIssue("AssetsApiClient.fetchAllAssets is unimplemented")
+                   return []
+               },
+               saveFavourite: { _, _ in
+                   XCTFail("AssetsApiClient.saveFavourite is unimplemented")
+               },
+               fetchFavourites: { _ in
+                   XCTFail("AssetsApiClient.fetchAsset is unimplemented")
+                   return []
+               },
+               fetchAsset: { _ in
+                   XCTFail("AssetsApiClient.fetchAsset is unimplemented")
+                   return .init(
+                       id: "bitcoin",
+                       name: "Bitcoin",
+                       symbol: "BTC",
+                       priceUsd: "89111121.2828",
+                       changePercent24Hr: "8.992929292"
+                   )
+                   
+               }
+           )
+       }
+
 }
 
 //Registramos la dependencia

@@ -10,11 +10,10 @@ struct AppTabView: View {
                 }
             }
             Tab("Favourites", systemImage: "star"){
-                Text("Settings")
+                FavouritesView()
             }
             Tab("Settings", systemImage: "gear"){
-                Text("Settings")
-            }
+                SettingsView()            }
         }
     }
 }
