@@ -1,22 +1,37 @@
 import SwiftUI
 
 struct AssetDetailView: View {
-    let asset: Asset
+    let viewModel: AssetDetailsViewModel
     
     var body: some View {
-        Text(asset.name)
-            .navigationTitle(asset.name)
+        VStack {
+            Text(viewModel.asset.name)
+            Button{
+                Task {
+                    await viewModel.addToFavourites()
+                }
+            }label:{
+                Text("Add to favourites")
+            }
+        }
+        
+        .navigationTitle(viewModel.asset.name)
     }
 }
 
 #Preview{
-    AssetDetailView(
-        asset: .init(
-            id: "bitcoin",
-            name: "Bitcoin",
-            symbol: "BTC",
-            priceUsd: "89999",
-            changePercent24Hr: "6.99"
+    NavigationStack{
+        AssetDetailView(
+            viewModel: .init(
+                asset: .init(
+                    id: "bitcoin",
+                    name: "Bitcoin",
+                    symbol: "BTC",
+                    priceUsd: "89999",
+                    changePercent24Hr: "6.99"
+                )   
+            )
         )
-    )
+    }
 }
+    
